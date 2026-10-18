@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
+import '../core/orders.dart';
 import '../core/theme.dart';
 import '../widgets/app_widgets.dart';
 
 class PaymentScreen extends StatefulWidget {
   final UploadResult order;
-  const PaymentScreen({super.key, required this.order});
+  final String fileName;
+  const PaymentScreen({super.key, required this.order, required this.fileName});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -19,6 +21,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _done = false;
 
   @override
+  void initState() {
+    super.initState();
+    final o = widget.order;
+    LocalStore.addOrder(LocalOrder(
+      jobId: o.jobId,
+      shopName: o.shopName,
+      fileName: widget.fileName,
+      amount: o.amount,
+      pages: o.effectivePages,
+      copies: o.copies,
+      createdAt: DateTime.now().toIso8601String(),
+    ));
+  }
+
+  @override
   void dispose() {
     _api.dispose();
     _utrCtrl.dispose();
@@ -26,6 +43,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   String get _amountText => '₹${(widget.order.amount / 100).toStringAsFixed(2)}';
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   Future<void> _openUpi() async {
     final o = widget.order;
@@ -56,6 +77,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() => _submitting = true);
     try {
       await _api.submitUtr(jobId: widget.order.jobId, utr: utr);
+      await LocalStore.setUtr(widget.order.jobId, utr);
       if (!mounted) return;
       setState(() => _done = true);
     } catch (e) {
@@ -63,10 +85,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -83,10 +101,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               children: [
                 const Icon(Icons.check_circle, color: AppColors.ok, size: 88),
                 const SizedBox(height: 20),
-                const Text('Payment mil gaya',
+                const Text('UTR bhej diya gaya',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
-                Text('Job ID: ${o.jobId}', style: const TextStyle(color: AppColors.ink2)),
+                Text('Order ID: ${o.jobId}',
+                    style: const TextStyle(color: AppColors.ink2)),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
@@ -113,7 +132,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: ElevatedButton.icon(
               onPressed: o.upiId.isEmpty ? null : _openUpi,
               icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text('UPI app kholein'),
+              label: Text(o.upiId.isEmpty ? 'UPI abhi available nahi' : 'UPI app kholein'),
             ),
           ),
           SectionCard(

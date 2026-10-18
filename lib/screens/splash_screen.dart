@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/config.dart';
 import '../core/theme.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen>
         context,
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 500),
-          pageBuilder: (_, __, ___) => const HomeScreen(),
+          pageBuilder: (_, __, ___) => const MainShell(),
           transitionsBuilder: (_, a, __, child) =>
               FadeTransition(opacity: a, child: child),
         ),

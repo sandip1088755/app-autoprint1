@@ -60,6 +60,87 @@ class UploadResult {
   });
 }
 
+String? _nz(dynamic v) {
+  if (v == null) return null;
+  final s = v.toString();
+  return s.isEmpty ? null : s;
+}
+
+String shortTime(String? t) {
+  if (t == null || t.isEmpty) return '';
+  final clean = t.replaceFirst('T', ' ');
+  return clean.length >= 16 ? clean.substring(0, 16) : clean;
+}
+
+class JobStatus {
+  final String id;
+  final String paymentStatus;
+  final String? printStatus;
+  final int amount;
+  final int pageCount;
+  final String? paidAt;
+  final String? queuedAt;
+  final String? printingAt;
+  final String? completedAt;
+  final String? failedAt;
+  final String? errorMessage;
+
+  JobStatus({
+    required this.id,
+    required this.paymentStatus,
+    required this.printStatus,
+    required this.amount,
+    required this.pageCount,
+    required this.paidAt,
+    required this.queuedAt,
+    required this.printingAt,
+    required this.completedAt,
+    required this.failedAt,
+    required this.errorMessage,
+  });
+
+  factory JobStatus.fromJson(Map<String, dynamic> j) => JobStatus(
+        id: j['id'].toString(),
+        paymentStatus: _nz(j['payment_status']) ?? '',
+        printStatus: _nz(j['print_status']),
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        pageCount: (j['page_count'] as num?)?.toInt() ?? 0,
+        paidAt: _nz(j['paid_at']),
+        queuedAt: _nz(j['queued_at']),
+        printingAt: _nz(j['printing_at']),
+        completedAt: _nz(j['completed_at']),
+        failedAt: _nz(j['failed_at']),
+        errorMessage: _nz(j['error_message']),
+      );
+
+  bool get isCompleted => completedAt != null;
+  bool get isFailed => failedAt != null;
+  bool get isPaid => paidAt != null || paymentStatus == 'PAID';
+
+  String get label {
+    if (isFailed) return 'Print fail hua';
+    if (isCompleted) return 'Print complete';
+    if (printingAt != null) return 'Print ho raha hai';
+    if (queuedAt != null) return 'Shop ki queue mein';
+    if (isPaid) return 'Payment mil gaya';
+    return 'Payment pending';
+  }
+
+  List<({String title, String at})> get events {
+    final list = <({String title, String at})>[];
+    void add(String? at, String title) {
+      if (at != null) list.add((title: title, at: at));
+    }
+
+    add(paidAt, 'Payment mil gaya');
+    add(queuedAt, 'Order shop ki queue mein gaya');
+    add(printingAt, 'Print shuru hua');
+    add(completedAt, 'Print complete, pickup ke liye tayyar');
+    add(failedAt, 'Print fail hua');
+    return list;
+  }
+}
+
 class ApiClient {
   final http.Client _http = http.Client();
 
@@ -168,6 +249,42 @@ class ApiClient {
     final data = _decode(res.body);
     if (res.statusCode != 200) {
       throw ApiException(data['error']?.toString() ?? 'Payment confirm nahi hua');
+    }
+  }
+
+  Future<JobStatus> getJobStatus(String jobId) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/api/job-status.php')
+        .replace(queryParameters: {'id': jobId});
+    final res = await _http.get(uri).timeout(AppConfig.requestTimeout);
+    final data = _decode(res.body);
+    if (res.statusCode != 200) {
+      throw ApiException(data['error']?.toString() ?? 'Order status nahi mila');
+    }
+    return JobStatus.fromJson(data);
+  }
+
+  Future<void> submitReview({
+    required String jobId,
+    required int rating,
+    required String title,
+    required String comment,
+  }) async {
+    final res = await _http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/api/submit-review.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'job_id': jobId,
+            'rating': rating,
+            'title': title,
+            'comment': comment,
+            'tags': <String>[],
+          }),
+        )
+        .timeout(AppConfig.requestTimeout);
+    final data = _decode(res.body);
+    if (res.statusCode != 200 || data['error'] != null) {
+      throw ApiException(data['error']?.toString() ?? 'Review submit nahi hua');
     }
   }
 

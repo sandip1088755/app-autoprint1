@@ -100,7 +100,7 @@ class _PrintScreenState extends State<PrintScreen> {
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PaymentScreen(order: result)),
+        MaterialPageRoute(builder: (_) => PaymentScreen(order: result, fileName: _file?.name ?? 'document')),
       );
     } catch (e) {
       if (mounted) _snack(e.toString());
