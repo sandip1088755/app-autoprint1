@@ -10,6 +10,36 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+class Shop {
+  final String id;
+  final String name;
+  final String slug;
+  final String city;
+  final String address;
+  final String openTime;
+  final String closeTime;
+
+  Shop({
+    required this.id,
+    required this.name,
+    required this.slug,
+    required this.city,
+    required this.address,
+    required this.openTime,
+    required this.closeTime,
+  });
+
+  factory Shop.fromJson(Map<String, dynamic> j) => Shop(
+        id: j['id'].toString(),
+        name: j['shop_name']?.toString() ?? '',
+        slug: j['slug']?.toString() ?? '',
+        city: j['city']?.toString() ?? '',
+        address: j['address']?.toString() ?? '',
+        openTime: j['open_time']?.toString() ?? '',
+        closeTime: j['close_time']?.toString() ?? '',
+      );
+}
+
 class UploadResult {
   final String jobId;
   final int pageCount;
@@ -39,6 +69,22 @@ class ApiClient {
     } catch (_) {
       throw ApiException('Server se galat response aaya');
     }
+  }
+
+  Future<List<Shop>> searchShops({String? query, String? slug}) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/api/shops-search.php').replace(
+      queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        if (slug != null && slug.isNotEmpty) 'slug': slug,
+      },
+    );
+    final res = await _http.get(uri).timeout(AppConfig.requestTimeout);
+    final data = _decode(res.body);
+    if (res.statusCode != 200) {
+      throw ApiException(data['error']?.toString() ?? 'Shop search fail hua');
+    }
+    final list = (data['shops'] as List?) ?? [];
+    return list.map((e) => Shop.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<int> calculatePrice({

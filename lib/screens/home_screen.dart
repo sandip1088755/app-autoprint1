@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../core/api_client.dart';
 import '../core/theme.dart';
-import '../widgets/app_widgets.dart';
 import '../widgets/animations.dart';
 import 'print_screen.dart';
 import 'scan_screen.dart';
+import 'shop_search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,38 +14,59 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _shopCtrl = TextEditingController();
+  final ApiClient _api = ApiClient();
 
   @override
   void dispose() {
-    _shopCtrl.dispose();
+    _api.dispose();
     super.dispose();
   }
 
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _openPrint(String id, String? name) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PrintScreen(shopId: id, shopName: name)),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ShopSearchScreen()),
+    );
+  }
+
   Future<void> _scan() async {
-    final id = await Navigator.push<String>(
+    final res = await Navigator.push<({String type, String value})>(
       context,
       MaterialPageRoute(builder: (_) => const ScanScreen()),
     );
-    if (id != null && mounted) _openShop(id);
-  }
+    if (res == null || !mounted) return;
 
-  void _openShop(String shopId) {
-    final id = shopId.trim();
-    if (id.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shop ID daalein')),
-      );
+    if (res.type == 'id') {
+      _openPrint(res.value, null);
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => PrintScreen(shopId: id)),
-    );
+
+    try {
+      final shops = await _api.searchShops(slug: res.value);
+      if (!mounted) return;
+      if (shops.isEmpty) {
+        _snack('Ye QR kisi active shop se match nahi karta');
+        return;
+      }
+      _openPrint(shops.first.id, shops.first.name);
+    } catch (e) {
+      if (mounted) _snack(e.toString());
+    }
   }
 
   static const _steps = [
-    (Color(0xFF6366F1), Icons.qr_code_2, 'Shop ka QR scan karein'),
+    (Color(0xFF6366F1), Icons.qr_code_2, 'Shop chunein (QR ya naam se)'),
     (Color(0xFF0EA5E9), Icons.upload_file, 'PDF ya photo upload karein'),
     (Color(0xFF10B981), Icons.tune, 'Pages aur copies chunein'),
     (Color(0xFFF59E0B), Icons.payments_outlined, 'UPI se pay karein'),
@@ -57,58 +79,39 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.zero,
         children: [
           FadeSlideIn(index: 0, child: _hero()),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           FadeSlideIn(
             index: 1,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _scanButton(),
+              child: _actionButton(
+                colors: const [Color(0xFF4F46E5), Color(0xFFDB2777)],
+                icon: Icons.qr_code_scanner,
+                label: 'Shop ka QR scan karein',
+                onTap: _scan,
+              ),
             ),
           ),
+          const SizedBox(height: 12),
           FadeSlideIn(
             index: 2,
-            child: SectionCard(
-              title: 'Ya shop ID daalein',
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _shopCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      hintText: 'Shop ID',
-                      prefixIcon: Icon(Icons.storefront_outlined,
-                          color: AppColors.brand),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _openShop(_shopCtrl.text),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        foregroundColor: AppColors.brand,
-                        side: const BorderSide(color: AppColors.brand, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: const Text('Shop kholein',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _actionButton(
+                colors: const [Color(0xFF0EA5E9), Color(0xFF4F46E5)],
+                icon: Icons.search,
+                label: 'Shop ka naam se dhundhein',
+                onTap: _openSearch,
               ),
             ),
           ),
           FadeSlideIn(
             index: 3,
             child: const Padding(
-              padding: EdgeInsets.fromLTRB(20, 14, 20, 6),
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 6),
               child: Text('Kaise kaam karta hai',
                   style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                      color: AppColors.ink)),
+                      fontWeight: FontWeight.w800, fontSize: 17, color: AppColors.ink)),
             ),
           ),
           for (var i = 0; i < _steps.length; i++)
@@ -170,37 +173,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _scanButton() {
+  Widget _actionButton({
+    required List<Color> colors,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: _scan,
+        onTap: onTap,
         child: Ink(
           height: 58,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4F46E5), Color(0xFFDB2777)],
-            ),
+            gradient: LinearGradient(colors: colors),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                color: colors.first.withValues(alpha: 0.35),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.qr_code_scanner, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Shop ka QR scan karein',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800)),
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 10),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
             ],
           ),
         ),
@@ -226,8 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(icon, color: Colors.white),
           ),
           title: Text(text,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: AppColors.ink)),
+              style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.ink)),
           trailing: Container(
             width: 30,
             height: 30,

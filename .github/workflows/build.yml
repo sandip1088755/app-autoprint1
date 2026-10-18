@@ -27,6 +27,8 @@ jobs:
           fi
           flutter pub get
 
+      - name: Add permissions and app label
+        run: bash ci/add-permissions.sh
 
       - name: Generate app icons
         if: hashFiles('assets/icon/icon.png') != ''

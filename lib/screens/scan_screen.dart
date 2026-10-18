@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/theme.dart';
 
+typedef ScanResult = ({String type, String value});
+
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
@@ -23,18 +25,26 @@ class _ScanScreenState extends State<ScanScreen> {
     if (_done || capture.barcodes.isEmpty) return;
     final raw = capture.barcodes.first.rawValue;
     if (raw == null) return;
-    final id = _extractShopId(raw);
-    if (id == null) return;
+    final result = _extract(raw);
+    if (result == null) return;
     _done = true;
-    Navigator.pop(context, id);
+    Navigator.pop(context, result);
   }
 
-  String? _extractShopId(String raw) {
+  ScanResult? _extract(String raw) {
     final value = raw.trim();
     final uri = Uri.tryParse(value);
-    final fromQuery = uri?.queryParameters['shop_id'];
-    if (fromQuery != null && fromQuery.isNotEmpty) return fromQuery;
-    if (RegExp(r'^\d+$').hasMatch(value)) return value;
+    final shopId = uri?.queryParameters['shop_id'];
+    if (shopId != null && shopId.isNotEmpty) {
+      return (type: 'id', value: shopId);
+    }
+    final slug = uri?.queryParameters['slug'] ?? uri?.queryParameters['s'];
+    if (slug != null && slug.isNotEmpty) {
+      return (type: 'slug', value: slug);
+    }
+    if (RegExp(r'^\d+$').hasMatch(value)) {
+      return (type: 'id', value: value);
+    }
     return null;
   }
 
@@ -53,7 +63,20 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
       body: Stack(
         children: [
-          MobileScanner(controller: _controller, onDetect: _onDetect),
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+            errorBuilder: (context, error, child) => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Camera nahi khul raha. Settings mein camera permission allow karein aur app dobara kholein.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 15),
+                ),
+              ),
+            ),
+          ),
           Center(
             child: Container(
               width: 240,

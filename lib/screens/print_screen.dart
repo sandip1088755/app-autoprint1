@@ -8,7 +8,8 @@ import 'payment_screen.dart';
 
 class PrintScreen extends StatefulWidget {
   final String shopId;
-  const PrintScreen({super.key, required this.shopId});
+  final String? shopName;
+  const PrintScreen({super.key, required this.shopId, this.shopName});
 
   @override
   State<PrintScreen> createState() => _PrintScreenState();
@@ -117,7 +118,7 @@ class _PrintScreenState extends State<PrintScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Print karein')),
+      appBar: AppBar(title: Text(widget.shopName ?? 'Print karein')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
