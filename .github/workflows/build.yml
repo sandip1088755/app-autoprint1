@@ -28,35 +28,7 @@ jobs:
           flutter pub get
 
       - name: Force compileSdk 36 for all plugins
-        run: |
-          if [ -f android/build.gradle.kts ]; then
-            cat >> android/build.gradle.kts << 'KTS'
-
-subprojects {
-    afterEvaluate {
-        if (hasProperty("android")) {
-            extensions.configure<com.android.build.gradle.BaseExtension> {
-                compileSdkVersion(36)
-            }
-        }
-    }
-}
-KTS
-            echo "Patched android/build.gradle.kts"
-          fi
-          if [ -f android/build.gradle ]; then
-            cat >> android/build.gradle << 'GRADLE'
-
-subprojects {
-    afterEvaluate { p ->
-        if (p.hasProperty('android')) {
-            p.android.compileSdkVersion 36
-        }
-    }
-}
-GRADLE
-            echo "Patched android/build.gradle"
-          fi
+        run: bash ci/patch-gradle.sh
 
       - name: Generate app icons
         if: hashFiles('assets/icon/icon.png') != ''
