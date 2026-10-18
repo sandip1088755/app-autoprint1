@@ -5,9 +5,9 @@ if [ -f android/build.gradle.kts ]; then
 cat >> android/build.gradle.kts << 'KTS'
 
 subprojects {
-    afterEvaluate {
-        extensions.findByName("android")?.let { ext ->
-            (ext as com.android.build.gradle.BaseExtension).compileSdkVersion(36)
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension> {
+            compileSdk = 36
         }
     }
 }
@@ -19,10 +19,8 @@ if [ -f android/build.gradle ]; then
 cat >> android/build.gradle << 'GRADLE'
 
 subprojects {
-    afterEvaluate { p ->
-        if (p.hasProperty('android')) {
-            p.android.compileSdkVersion 36
-        }
+    plugins.withId('com.android.library') {
+        android.compileSdkVersion 36
     }
 }
 GRADLE
