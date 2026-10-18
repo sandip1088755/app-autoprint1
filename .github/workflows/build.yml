@@ -27,6 +27,16 @@ jobs:
           fi
           flutter pub get
 
+      - name: Set Android SDK levels
+        run: |
+          for f in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i -E 's/compileSdk(Version)?[ =]+[^ }]+/compileSdk = 35/' "$f"
+              sed -i -E 's/minSdk(Version)?[ =]+[^ }]+/minSdk = 23/' "$f"
+              echo "Updated $f"
+            fi
+          done
+
       - name: Generate app icons
         if: hashFiles('assets/icon/icon.png') != ''
         run: dart run flutter_launcher_icons
