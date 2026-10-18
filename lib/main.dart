@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/config.dart';
 import 'core/theme.dart';
-import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() => runApp(const AutoPrintApp());
 
@@ -14,7 +14,7 @@ class AutoPrintApp extends StatelessWidget {
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -27,6 +27,10 @@ jobs:
           fi
           flutter pub get
 
+      - name: Generate app icons
+        if: hashFiles('assets/icon/icon.png') != ''
+        run: dart run flutter_launcher_icons
+
       - name: Build release APK
         run: flutter build apk --release
 
