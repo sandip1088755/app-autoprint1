@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import '../widgets/app_widgets.dart';
 import '../widgets/animations.dart';
 import 'print_screen.dart';
 import 'scan_screen.dart';
