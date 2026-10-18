@@ -30,11 +30,11 @@ jobs:
       - name: Set Android SDK levels
         run: |
           for f in android/app/build.gradle android/app/build.gradle.kts; do
-            if [ -f "$f" ]; then
-              sed -i -E 's/compileSdk(Version)?[ =]+[^ }]+/compileSdk = 36/' "$f"
-              sed -i -E 's/minSdk(Version)?[ =]+[^ }]+/minSdk = 23/' "$f"
-              echo "Updated $f"
-            fi
+            [ -f "$f" ] || continue
+            sed -i -E 's/compileSdk(Version)?[ =]+[^ }]+/compileSdk = 36/' "$f"
+            sed -i -E 's/minSdk(Version)?[ =]+[^ }]+/minSdk = 23/' "$f"
+            echo "== $f"
+            grep -n -E "compileSdk|minSdk" "$f"
           done
 
       - name: Generate app icons
