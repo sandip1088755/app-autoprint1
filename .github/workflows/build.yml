@@ -27,8 +27,6 @@ jobs:
           fi
           flutter pub get
 
-      - name: Force compileSdk 36 for all plugins
-        run: bash ci/patch-gradle.sh
 
       - name: Generate app icons
         if: hashFiles('assets/icon/icon.png') != ''
