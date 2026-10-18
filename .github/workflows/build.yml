@@ -27,15 +27,36 @@ jobs:
           fi
           flutter pub get
 
-      - name: Set Android SDK levels
+      - name: Force compileSdk 36 for all plugins
         run: |
-          for f in android/app/build.gradle android/app/build.gradle.kts; do
-            [ -f "$f" ] || continue
-            sed -i -E 's/compileSdk(Version)?[ =]+[^ }]+/compileSdk = 36/' "$f"
-            sed -i -E 's/minSdk(Version)?[ =]+[^ }]+/minSdk = 23/' "$f"
-            echo "== $f"
-            grep -n -E "compileSdk|minSdk" "$f"
-          done
+          if [ -f android/build.gradle.kts ]; then
+            cat >> android/build.gradle.kts << 'KTS'
+
+subprojects {
+    afterEvaluate {
+        if (hasProperty("android")) {
+            extensions.configure<com.android.build.gradle.BaseExtension> {
+                compileSdkVersion(36)
+            }
+        }
+    }
+}
+KTS
+            echo "Patched android/build.gradle.kts"
+          fi
+          if [ -f android/build.gradle ]; then
+            cat >> android/build.gradle << 'GRADLE'
+
+subprojects {
+    afterEvaluate { p ->
+        if (p.hasProperty('android')) {
+            p.android.compileSdkVersion 36
+        }
+    }
+}
+GRADLE
+            echo "Patched android/build.gradle"
+          fi
 
       - name: Generate app icons
         if: hashFiles('assets/icon/icon.png') != ''
