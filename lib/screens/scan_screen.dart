@@ -117,16 +117,6 @@ class _ScanScreenState extends State<ScanScreen> {
         MobileScanner(
           controller: _controller!,
           onDetect: _onDetect,
-          errorBuilder: (context, error, child) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Camera error: ${error.toString()}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ),
         ),
         Center(
           child: Container(
