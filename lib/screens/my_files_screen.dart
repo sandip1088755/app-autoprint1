@@ -3,34 +3,16 @@ import '../core/api_client.dart';
 import '../core/orders.dart';
 import '../core/theme.dart';
 import '../widgets/animations.dart';
+import '../widgets/async_view.dart';
 
-class MyFilesScreen extends StatefulWidget {
+class MyFilesScreen extends StatelessWidget {
   const MyFilesScreen({super.key});
 
-  @override
-  State<MyFilesScreen> createState() => _MyFilesScreenState();
-}
+  IconData _iconFor(String name) =>
+      name.toLowerCase().endsWith('.pdf') ? Icons.picture_as_pdf : Icons.image;
 
-class _MyFilesScreenState extends State<MyFilesScreen> {
-  List<LocalOrder> _files = [];
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final list = await LocalStore.orders();
-    if (!mounted) return;
-    setState(() {
-      _files = list;
-      _loaded = true;
-    });
-  }
-
-  Future<void> _remove(LocalOrder o) async {
+  Future<void> _remove(
+      BuildContext context, LocalOrder o, Future<void> Function() reload) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -45,33 +27,10 @@ class _MyFilesScreenState extends State<MyFilesScreen> {
     );
     if (ok != true) return;
     await LocalStore.removeOrder(o.jobId);
-    _load();
+    await reload();
   }
 
-  IconData _iconFor(String name) =>
-      name.toLowerCase().endsWith('.pdf') ? Icons.picture_as_pdf : Icons.image;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My Files')),
-      body: !_loaded
-          ? const Center(child: CircularProgressIndicator())
-          : _files.isEmpty
-              ? const Center(
-                  child: Text('Abhi koi file upload nahi hui',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _files.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => FadeSlideIn(index: i, child: _tile(_files[i])),
-                ),
-    );
-  }
-
-  Widget _tile(LocalOrder o) {
+  Widget _tile(BuildContext context, LocalOrder o, Future<void> Function() reload) {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -96,7 +55,31 @@ class _MyFilesScreenState extends State<MyFilesScreen> {
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline, color: AppColors.bad),
-          onPressed: () => _remove(o),
+          onPressed: () => _remove(context, o, reload),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Files')),
+      body: AsyncView<List<LocalOrder>>(
+        loader: LocalStore.orders,
+        isEmpty: (l) => l.isEmpty,
+        emptyIcon: Icons.folder_open,
+        emptyTitle: 'Abhi koi file nahi hai',
+        emptySubtitle: 'Shop chunein aur PDF ya photo upload karein',
+        builder: (context, files, reload) => RefreshIndicator(
+          onRefresh: reload,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: files.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) =>
+                FadeSlideIn(index: i, child: _tile(context, files[i], reload)),
+          ),
         ),
       ),
     );

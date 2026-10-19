@@ -3,6 +3,7 @@ import '../core/orders.dart';
 import '../core/theme.dart';
 import '../widgets/animations.dart';
 import 'more_screens.dart';
+import 'payment_options_screen.dart';
 import 'rating_screen.dart';
 
 class ProfileScreen extends StatefulWidget {

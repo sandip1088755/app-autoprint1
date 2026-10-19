@@ -3,73 +3,13 @@ import '../core/api_client.dart';
 import '../core/order_loader.dart';
 import '../core/theme.dart';
 import '../widgets/animations.dart';
+import '../widgets/async_view.dart';
 import 'rating_screen.dart';
 
-class MyOrdersScreen extends StatefulWidget {
+class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
 
-  @override
-  State<MyOrdersScreen> createState() => _MyOrdersScreenState();
-}
-
-class _MyOrdersScreenState extends State<MyOrdersScreen> {
-  final ApiClient _api = ApiClient();
-  List<OrderView> _items = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _api.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final items = await loadOrderViews(_api);
-    if (!mounted) return;
-    setState(() {
-      _items = items;
-      _loading = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My Orders')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading && _items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : _items.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 140),
-                      Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.brand),
-                      SizedBox(height: 12),
-                      Center(
-                        child: Text('Abhi koi order nahi hai',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => FadeSlideIn(index: i, child: _card(_items[i])),
-                  ),
-      ),
-    );
-  }
-
-  Widget _card(OrderView v) {
+  Widget _card(BuildContext context, OrderView v) {
     final s = v.status;
     final label = s?.label ?? 'Status load nahi hua';
     final done = s?.isCompleted ?? false;
@@ -98,8 +38,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(label,
-                      style: TextStyle(
-                          color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+                      style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
                 ),
               ],
             ),
@@ -119,12 +58,36 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () =>
-                      showReviewSheet(context, _api, v.order.jobId, v.order.shopName),
+                      showReviewSheet(context, v.order.jobId, v.order.shopName),
                   icon: const Icon(Icons.star_rounded, color: Colors.amber),
                   label: const Text('Rate karein'),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Orders')),
+      body: AsyncView<List<OrderView>>(
+        loader: fetchOrderViews,
+        isEmpty: (l) => l.isEmpty,
+        emptyIcon: Icons.receipt_long_outlined,
+        emptyTitle: 'Abhi koi order nahi hai',
+        emptySubtitle: 'Shop chunein, file upload karein aur pay karein',
+        builder: (context, items, reload) => RefreshIndicator(
+          onRefresh: reload,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) =>
+                FadeSlideIn(index: i, child: _card(context, items[i])),
+          ),
         ),
       ),
     );

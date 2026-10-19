@@ -3,30 +3,30 @@ import '../core/api_client.dart';
 import '../core/order_loader.dart';
 import '../core/theme.dart';
 import '../widgets/animations.dart';
+import '../widgets/async_view.dart';
 
-Future<void> showReviewSheet(
-    BuildContext context, ApiClient api, String jobId, String shopName) {
+Future<void> showReviewSheet(BuildContext context, String jobId, String shopName) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => _ReviewSheet(api: api, jobId: jobId, shopName: shopName),
+    builder: (_) => _ReviewSheet(jobId: jobId, shopName: shopName),
   );
 }
 
 class _ReviewSheet extends StatefulWidget {
-  final ApiClient api;
   final String jobId;
   final String shopName;
-  const _ReviewSheet({required this.api, required this.jobId, required this.shopName});
+  const _ReviewSheet({required this.jobId, required this.shopName});
 
   @override
   State<_ReviewSheet> createState() => _ReviewSheetState();
 }
 
 class _ReviewSheetState extends State<_ReviewSheet> {
+  final ApiClient _api = ApiClient();
   int _rating = 5;
   final _title = TextEditingController();
   final _comment = TextEditingController();
@@ -34,6 +34,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
 
   @override
   void dispose() {
+    _api.dispose();
     _title.dispose();
     _comment.dispose();
     super.dispose();
@@ -44,7 +45,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
     final nav = Navigator.of(context);
     setState(() => _sending = true);
     try {
-      await widget.api.submitReview(
+      await _api.submitReview(
         jobId: widget.jobId,
         rating: _rating,
         title: _title.text.trim(),
@@ -113,84 +114,48 @@ class _ReviewSheetState extends State<_ReviewSheet> {
   }
 }
 
-class RatingScreen extends StatefulWidget {
+class RatingScreen extends StatelessWidget {
   const RatingScreen({super.key});
-
-  @override
-  State<RatingScreen> createState() => _RatingScreenState();
-}
-
-class _RatingScreenState extends State<RatingScreen> {
-  final ApiClient _api = ApiClient();
-  List<OrderView> _items = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _api.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final views = await loadOrderViews(_api);
-    if (!mounted) return;
-    setState(() {
-      _items = views.where((v) => v.status?.isCompleted ?? false).toList();
-      _loading = false;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Rating & Review')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text(
-                      'Review tabhi de sakte hain jab order complete ho jaye.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.w700),
+      body: AsyncView<List<OrderView>>(
+        loader: () async =>
+            (await fetchOrderViews()).where((v) => v.status?.isCompleted ?? false).toList(),
+        isEmpty: (l) => l.isEmpty,
+        emptyIcon: Icons.star_outline_rounded,
+        emptyTitle: 'Review ke liye koi order nahi',
+        emptySubtitle: 'Order complete hone ke baad yahan review de sakte hain',
+        builder: (context, items, reload) => RefreshIndicator(
+          onRefresh: reload,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final o = items[i].order;
+              return FadeSlideIn(
+                index: i,
+                child: Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    leading: const Icon(Icons.star_rounded, color: Colors.amber, size: 32),
+                    title: Text(o.shopName,
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text(o.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: FilledButton(
+                      onPressed: () => showReviewSheet(context, o.jobId, o.shopName),
+                      child: const Text('Review'),
                     ),
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final o = _items[i].order;
-                    return FadeSlideIn(
-                      index: i,
-                      child: Card(
-                        child: ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          leading: const Icon(Icons.star_rounded, color: Colors.amber, size: 32),
-                          title: Text(o.shopName,
-                              style: const TextStyle(fontWeight: FontWeight.w800)),
-                          subtitle: Text(o.fileName,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: FilledButton(
-                            onPressed: () =>
-                                showReviewSheet(context, _api, o.jobId, o.shopName),
-                            child: const Text('Review'),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

@@ -18,3 +18,12 @@ Future<List<OrderView>> loadOrderViews(ApiClient api) async {
   }).toList();
   return Future.wait(futures);
 }
+
+Future<List<OrderView>> fetchOrderViews() async {
+  final api = ApiClient();
+  try {
+    return await loadOrderViews(api);
+  } finally {
+    api.dispose();
+  }
+}

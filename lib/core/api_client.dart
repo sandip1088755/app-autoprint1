@@ -148,7 +148,14 @@ class ApiClient {
     try {
       return jsonDecode(body) as Map<String, dynamic>;
     } catch (_) {
-      throw ApiException('Server se galat response aaya');
+      final text = body
+          .replaceAll(RegExp(r'<[^>]*>'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final snippet = text.length > 160 ? text.substring(0, 160) : text;
+      throw ApiException(snippet.isEmpty
+          ? 'Server ne khali jawab diya'
+          : 'Server ka jawab: $snippet');
     }
   }
 
