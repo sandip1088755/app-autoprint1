@@ -66,16 +66,29 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   ScanResult? _extract(String raw) {
-    final value = raw.trim();
+    var value = raw.trim();
+    if (!value.contains('://') && value.contains('.')) {
+      value = 'https://$value';
+    }
     final uri = Uri.tryParse(value);
-    final shopId = uri?.queryParameters['shop_id'];
+    if (uri == null) return null;
+
+    final shopId = uri.queryParameters['shop_id'];
     if (shopId != null && shopId.isNotEmpty) {
       return (type: 'id', value: shopId);
     }
-    final slug = uri?.queryParameters['slug'] ?? uri?.queryParameters['s'];
-    if (slug != null && slug.isNotEmpty) {
-      return (type: 'slug', value: slug);
+
+    final qSlug = uri.queryParameters['slug'];
+    if (qSlug != null && qSlug.isNotEmpty) {
+      return (type: 'slug', value: qSlug);
     }
+
+    final segs = uri.pathSegments;
+    final i = segs.indexOf('s');
+    if (i >= 0 && i + 1 < segs.length && segs[i + 1].isNotEmpty) {
+      return (type: 'slug', value: segs[i + 1]);
+    }
+
     if (RegExp(r'^\d+$').hasMatch(value)) {
       return (type: 'id', value: value);
     }
