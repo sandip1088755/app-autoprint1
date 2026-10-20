@@ -160,7 +160,7 @@ class ApiClient {
   Map<String, String> _headers() {
     final h = <String, String>{
       'Accept': 'application/json',
-      'User-Agent': 'AutoPrint-Android/1.0',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
     };
     if (_cookies.isNotEmpty) {
       h['Cookie'] = _cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
