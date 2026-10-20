@@ -7,8 +7,14 @@ import '../widgets/app_widgets.dart';
 
 class PaymentScreen extends StatefulWidget {
   final UploadResult order;
+  final String shopId;
   final String fileName;
-  const PaymentScreen({super.key, required this.order, required this.fileName});
+  const PaymentScreen({
+    super.key,
+    required this.order,
+    required this.shopId,
+    required this.fileName,
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -17,6 +23,9 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   final ApiClient _api = ApiClient();
   final _utrCtrl = TextEditingController();
+  String _upi = '';
+  bool _upiLoading = false;
+  String? _upiError;
   bool _submitting = false;
   bool _done = false;
 
@@ -24,6 +33,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void initState() {
     super.initState();
     final o = widget.order;
+    _upi = o.upiId;
     LocalStore.addOrder(LocalOrder(
       jobId: o.jobId,
       shopName: o.shopName,
@@ -33,6 +43,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       copies: o.copies,
       createdAt: DateTime.now().toIso8601String(),
     ));
+    if (_upi.isEmpty) _loadUpi();
   }
 
   @override
@@ -40,6 +51,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _api.dispose();
     _utrCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUpi() async {
+    setState(() {
+      _upiLoading = true;
+      _upiError = null;
+    });
+    try {
+      final upi = await _api.fetchUpiId(widget.shopId);
+      if (!mounted) return;
+      setState(() => _upi = upi);
+    } catch (e) {
+      if (mounted) setState(() => _upiError = e.toString());
+    } finally {
+      if (mounted) setState(() => _upiLoading = false);
+    }
   }
 
   String get _amountText => '₹${(widget.order.amount / 100).toStringAsFixed(2)}';
@@ -54,7 +81,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       scheme: 'upi',
       host: 'pay',
       queryParameters: {
-        'pa': o.upiId,
+        'pa': _upi,
         'pn': o.shopName,
         'am': (o.amount / 100).toStringAsFixed(2),
         'cu': 'INR',
@@ -85,6 +112,37 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Widget _upiSection() {
+    if (_upiLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(8),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: _upi.isEmpty ? null : _openUpi,
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          label: Text(_upi.isEmpty ? 'UPI abhi available nahi' : 'UPI app kholein'),
+        ),
+        if (_upi.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              _upiError ?? 'Shop ne UPI ID set nahi kiya. Shop se sampark karein.',
+              style: const TextStyle(color: AppColors.bad, fontSize: 12),
+            ),
+          ),
+        if (_upi.isEmpty)
+          TextButton(onPressed: _loadUpi, child: const Text('Dobara try karein')),
+      ],
+    );
   }
 
   @override
@@ -129,11 +187,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           SectionCard(
             title: '1. UPI app se pay karein',
-            child: ElevatedButton.icon(
-              onPressed: o.upiId.isEmpty ? null : _openUpi,
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: Text(o.upiId.isEmpty ? 'UPI abhi available nahi' : 'UPI app kholein'),
-            ),
+            child: _upiSection(),
           ),
           SectionCard(
             title: '2. Payment ke baad UTR daalein',

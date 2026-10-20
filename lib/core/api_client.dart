@@ -373,5 +373,20 @@ class ApiClient {
     }
   }
 
+  Future<String> fetchUpiId(String shopId) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/api/shops-search.php')
+        .replace(queryParameters: {'id': shopId});
+    final res = await _withChallenge(
+        (h) => _http.get(uri, headers: h).timeout(AppConfig.requestTimeout));
+    final data = _decode(res);
+    if (res.statusCode != 200) {
+      throw ApiException(_errMsg(data, 'UPI details nahi mili'));
+    }
+    final list = (data['shops'] as List?) ?? const [];
+    if (list.isEmpty) return '';
+    final row = list.first as Map<String, dynamic>;
+    return row['upi_id']?.toString() ?? '';
+  }
+
   void dispose() => _http.close();
 }
